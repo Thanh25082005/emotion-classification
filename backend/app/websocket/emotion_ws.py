@@ -7,18 +7,39 @@ Hop dong (muc 6.2):
     {"faces":[{"box":[x1,y1,x2,y2],"emotion":"happy","score":0.93}], "ts": <ms>}
   Toa do box theo kich thuoc frame goc client gui len.
 
-Phase 2: TAM THOI bo qua token (se bat lai o Phase 4).
+Phase 4: verify JWT qua query param ?token= TRUOC khi accept;
+token sai/thieu -> dong ket noi voi code 1008 (policy violation).
 """
 import time
 
 import cv2
 import numpy as np
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from sqlalchemy import select
 from starlette.concurrency import run_in_threadpool
 
+from app.core.security import decode_token
+from app.db.database import SessionLocal
+from app.models.user import User
 from app.services.inference import get_pipeline
 
 router = APIRouter()
+
+WS_POLICY_VIOLATION = 1008  # token sai/thieu
+
+
+def _authenticate(token: str | None) -> User | None:
+    """Tra ve User neu token hop le, nguoc lai None."""
+    if not token:
+        return None
+    username = decode_token(token)
+    if username is None:
+        return None
+    db = SessionLocal()
+    try:
+        return db.scalar(select(User).where(User.username == username))
+    finally:
+        db.close()
 
 
 def _build_payload(faces: list[dict]) -> dict:
@@ -37,7 +58,16 @@ def _build_payload(faces: list[dict]) -> dict:
 
 
 @router.websocket("/ws/emotion")
-async def emotion_ws(websocket: WebSocket):
+async def emotion_ws(websocket: WebSocket, token: str | None = None):
+    # Verify token (truyen qua query param ?token=) TRUOC khi xu ly bat ky frame nao.
+    user = _authenticate(token)
+    if user is None:
+        # Luu y ASGI: phai accept() roi close() moi gui duoc dung MA DONG 1008 ve client.
+        # Neu close() truoc accept(), uvicorn tra HTTP 403 va client KHONG nhan duoc code 1008.
+        await websocket.accept()
+        await websocket.close(code=WS_POLICY_VIOLATION)
+        return
+
     await websocket.accept()
     pipeline = get_pipeline()
     try:

@@ -23,5 +23,6 @@ sqlalchemy==2.0.36
 
 # --- Auth (Phase 4) ---
 passlib[bcrypt]==1.7.4
+bcrypt==4.0.1   # ghim ban: passlib 1.7.4 chua tuong thich bcrypt>=4.1/5.x
 python-jose[cryptography]==3.3.0
 python-multipart==0.0.20

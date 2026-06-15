@@ -9,15 +9,17 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import health
+from app.api import auth, health
 from app.core.config import settings
+from app.db.database import init_db
 from app.services.inference import init_pipeline
 from app.websocket import emotion_ws
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Nap model 1 lan khi khoi dong (gotcha #7)
+    # Tao bang DB + nap model 1 lan khi khoi dong (gotcha #7)
+    init_db()
     init_pipeline()
     yield
 
@@ -34,6 +36,7 @@ app.add_middleware(
 
 # REST: prefix /api
 app.include_router(health.router, prefix="/api")
+app.include_router(auth.router, prefix="/api")
 
 # WebSocket: /ws/emotion (router tu khai bao duong dan day du)
 app.include_router(emotion_ws.router)
