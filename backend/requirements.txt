@@ -1,0 +1,27 @@
+# Moi truong: Python 3.12
+# Luu y onnxruntime: chon dung goi theo phan cung (xem README / .env.example)
+#   - CPU / Intel:  onnxruntime            (hoac onnxruntime-openvino)
+#   - NVIDIA GPU:   onnxruntime-gpu        (can CUDA/cuDNN khop)
+
+# --- Web framework ---
+fastapi==0.128.0
+uvicorn[standard]==0.40.0
+
+# --- Inference / xu ly anh ---
+onnxruntime==1.23.2
+onnxscript==0.7.0
+ultralytics==8.4.64
+opencv-python==4.13.0.88
+numpy==2.2.6
+
+# --- Cau hinh / validate ---
+pydantic==2.12.5
+pydantic-settings==2.12.0
+
+# --- Database (Phase 4-5) ---
+sqlalchemy==2.0.36
+
+# --- Auth (Phase 4) ---
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.3.0
+python-multipart==0.0.20
