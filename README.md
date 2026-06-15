@@ -25,6 +25,9 @@ CV_project/
 │   ├── realtime_emotion.py        # class EmotionPipeline + pick_providers() — LÕI inference
 │   ├── export_to_onnx.py          # xuất .pt/.pth -> .onnx (chạy 1 lần)
 │   ├── test_image.py              # chạy thử predict() trên 1 ảnh (không cần webcam)
+│   ├── notebooks/                 # notebook train model (Kaggle GPU)
+│   │   ├── yolo-dectection.ipynb       # train YOLOv8n phát hiện mặt (WIDER FACE)
+│   │   └── efficientnet-b02.ipynb      # train EfficientNet-B2 cảm xúc (FER2013)
 │   └── models/
 │       ├── face_yolo.onnx
 │       ├── emotion_effnet.onnx (+ emotion_effnet.onnx.data)
@@ -58,6 +61,19 @@ python ai-service/export_to_onnx.py \
 ```
 
 > **Lưu ý:** với PyTorch 2.x, `torch.onnx.export` cần thêm gói **`onnxscript`**. EfficientNet xuất ra dạng *external data* (`emotion_effnet.onnx` + `emotion_effnet.onnx.data`) — **hai file phải luôn đi cùng thư mục**.
+
+### Huấn luyện model (notebooks)
+
+Hai model được train trên Kaggle (GPU Tesla T4), notebook đặt trong `ai-service/notebooks/`:
+
+| Notebook | Model | Dataset | Cấu hình chính | Output |
+|---|---|---|---|---|
+| `yolo-dectection.ipynb` | YOLOv8n (1 lớp `face`) | WIDER FACE (~12.880 ảnh, split 80/10/10) | 50 epochs, imgsz 640, batch 16, AdamW, cos_lr | `best.pt` |
+| `efficientnet-b02.ipynb` | EfficientNet-B2 (pretrained ImageNet, head Dropout 0.5 + Linear 7) | FER2013 (ImageFolder, 7 lớp) | Resize 260 + chuẩn hoá ImageNet, Adam, ReduceLROnPlateau, EarlyStopping; lưu best theo test accuracy | `efficientnet_b2_fer2013.pth` |
+
+> **Quan trọng (gotcha thứ tự nhãn):** EfficientNet dùng `ImageFolder`, nên thứ tự lớp = `train_dataset.classes` (theo bảng chữ cái tên thư mục). Notebook in giá trị này ra; phải khớp với `EMOTIONS` trong `realtime_emotion.py`: `["angry","disgust","fear","happy","neutral","sad","surprise"]`. Tiền xử lý lúc train (Resize 260, ImageNet mean/std) cũng phải khớp `EmotionPipeline`.
+
+Luồng đầy đủ: **notebook (train) → `best.pt` / `efficientnet_b2_fer2013.pth` → `export_to_onnx.py` → `.onnx` → inference**.
 
 Kiểm tra nhanh lõi AI (không cần webcam):
 
