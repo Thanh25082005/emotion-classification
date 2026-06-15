@@ -20,6 +20,7 @@ export default function Live() {
         <h1>Nhan dien cam xuc realtime</h1>
         <div>
           {user && <span style={{ marginRight: 8 }}>Xin chao, {user.username}</span>}
+          <Link to="/analyze" style={{ marginRight: 8 }}>Phan tich anh</Link>
           <Link to="/history" style={{ marginRight: 8 }}>Thong ke</Link>
           <button onClick={onLogout}>Dang xuat</button>
         </div>

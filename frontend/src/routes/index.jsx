@@ -1,4 +1,5 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
+import Analyze from '../pages/Analyze'
 import History from '../pages/History'
 import Live from '../pages/Live'
 import Login from '../pages/Login'
@@ -27,6 +28,14 @@ export const router = createBrowserRouter([
     element: (
       <RequireAuth>
         <History />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/analyze',
+    element: (
+      <RequireAuth>
+        <Analyze />
       </RequireAuth>
     ),
   },
