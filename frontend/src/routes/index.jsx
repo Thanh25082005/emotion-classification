@@ -1,8 +1,9 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
-import Analyze from '../pages/Analyze'
-import History from '../pages/History'
+import Landing from '../pages/Landing'
 import Live from '../pages/Live'
 import Login from '../pages/Login'
+import History from '../pages/History'
+import Analyze from '../pages/Analyze'
 import { useAuthStore } from '../stores/auth'
 
 // Chan route neu chua dang nhap -> chuyen ve /login.
@@ -13,30 +14,9 @@ function RequireAuth({ children }) {
 }
 
 export const router = createBrowserRouter([
-  { path: '/', element: <Navigate to="/live" replace /> },
+  { path: '/', element: <Landing /> },
   { path: '/login', element: <Login /> },
-  {
-    path: '/live',
-    element: (
-      <RequireAuth>
-        <Live />
-      </RequireAuth>
-    ),
-  },
-  {
-    path: '/history',
-    element: (
-      <RequireAuth>
-        <History />
-      </RequireAuth>
-    ),
-  },
-  {
-    path: '/analyze',
-    element: (
-      <RequireAuth>
-        <Analyze />
-      </RequireAuth>
-    ),
-  },
+  { path: '/live', element: <RequireAuth><Live /></RequireAuth> },
+  { path: '/history', element: <RequireAuth><History /></RequireAuth> },
+  { path: '/analyze', element: <RequireAuth><Analyze /></RequireAuth> },
 ])
