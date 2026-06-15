@@ -10,12 +10,15 @@ const JPEG_QUALITY = 0.6
  * Toa do box backend tra ve tinh theo do phan giai goc cua frame gui len,
  * nen canvas overlay duoc dat dung kich thuoc do phan giai goc cua video.
  */
-export default function WebcamView({ token }) {
+export default function WebcamView({ token, onFaces }) {
   const videoRef = useRef(null)
   const overlayRef = useRef(null)
   const captureRef = useRef(null) // canvas an, dung de chup frame gui di
   const wsRef = useRef(null)
   const facesRef = useRef([]) // ket qua moi nhat (khong setState moi frame de tranh re-render lien tuc)
+  // Doc onFaces qua ref de WS callback luon goi ban moi nhat ma KHONG can restart ket noi
+  const onFacesRef = useRef(onFaces)
+  onFacesRef.current = onFaces
 
   const [status, setStatus] = useState('connecting')
   const [error, setError] = useState('')
@@ -24,13 +27,40 @@ export default function WebcamView({ token }) {
     let stream = null
     let sendTimer = null
     let rafId = null
-    let cancelled = false
+    let reconnectTimer = null
+    let closedByUs = false // true khi unmount/token loi -> KHONG ket noi lai
+
+    // Mo WebSocket + tu dong ket noi lai khi bi rot
+    function openWS() {
+      wsRef.current = connectEmotionWS({
+        token,
+        onOpen: () => setStatus('connected'),
+        onClose: (ev) => {
+          setStatus('disconnected')
+          facesRef.current = [] // xoa box cu khi mat ket noi
+          if (closedByUs) return
+          if (ev && ev.code === 1008) {
+            // Token sai/het han -> khong nen ket noi lai
+            setError('Phien dang nhap khong hop le. Hay dang nhap lai.')
+            return
+          }
+          reconnectTimer = setTimeout(openWS, 1000) // thu ket noi lai sau 1s
+        },
+        onError: () => setStatus('error'),
+        onMessage: (msg) => {
+          const faces = msg.faces || []
+          facesRef.current = faces
+          // Cung cap du lieu cho bieu do realtime (F2) -- khong gui them request nao
+          if (onFacesRef.current) onFacesRef.current(faces)
+        },
+      })
+    }
 
     async function start() {
       // 1) Bat webcam
       try {
         stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-        if (cancelled) return
+        if (closedByUs) return
         const video = videoRef.current
         video.srcObject = stream
         await video.play()
@@ -39,14 +69,8 @@ export default function WebcamView({ token }) {
         return
       }
 
-      // 2) Mo WebSocket
-      wsRef.current = connectEmotionWS({
-        token,
-        onOpen: () => setStatus('connected'),
-        onClose: () => setStatus('disconnected'),
-        onError: () => setStatus('error'),
-        onMessage: (msg) => { facesRef.current = msg.faces || [] },
-      })
+      // 2) Mo WebSocket (co tu dong ket noi lai)
+      openWS()
 
       // 3) Gui frame dinh ky
       sendTimer = setInterval(sendFrame, SEND_INTERVAL_MS)
@@ -96,15 +120,20 @@ export default function WebcamView({ token }) {
 
       for (const f of facesRef.current) {
         const [x1, y1, x2, y2] = f.box
+        // Video hien thi dang lat guong (selfie), nhung frame gui di KHONG lat
+        // -> lat toa do X cua box de khop voi video, con CHU ve binh thuong (doc xuoi).
+        const fx1 = canvas.width - x2
+        const fx2 = canvas.width - x1
+
         ctx.strokeStyle = '#00d26a'
-        ctx.strokeRect(x1, y1, x2 - x1, y2 - y1)
+        ctx.strokeRect(fx1, y1, fx2 - fx1, y2 - y1)
 
         const label = `${f.emotion} ${(f.score * 100).toFixed(0)}%`
         const tw = ctx.measureText(label).width
         ctx.fillStyle = '#00d26a'
-        ctx.fillRect(x1, Math.max(0, y1 - fontSize - 4), tw + 8, fontSize + 4)
+        ctx.fillRect(fx1, Math.max(0, y1 - fontSize - 4), tw + 8, fontSize + 4)
         ctx.fillStyle = '#000'
-        ctx.fillText(label, x1 + 4, Math.max(fontSize, y1 - 2))
+        ctx.fillText(label, fx1 + 4, Math.max(fontSize, y1 - 2))
       }
     }
 
@@ -112,9 +141,10 @@ export default function WebcamView({ token }) {
 
     // Don dep khi unmount
     return () => {
-      cancelled = true
+      closedByUs = true
       if (sendTimer) clearInterval(sendTimer)
       if (rafId) cancelAnimationFrame(rafId)
+      if (reconnectTimer) clearTimeout(reconnectTimer)
       if (wsRef.current) wsRef.current.close()
       if (stream) stream.getTracks().forEach((t) => t.stop())
     }
@@ -139,7 +169,7 @@ export default function WebcamView({ token }) {
             left: 0,
             width: '100%',
             height: '100%',
-            transform: 'scaleX(-1)',
+            // KHONG lat canvas -> chu doc xuoi; box da duoc lat toa do X trong drawOverlay
             pointerEvents: 'none',
           }}
         />
