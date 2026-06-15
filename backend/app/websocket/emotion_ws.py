@@ -11,6 +11,7 @@ Phase 4: verify JWT qua query param ?token= TRUOC khi accept;
 token sai/thieu -> dong ket noi voi code 1008 (policy violation).
 """
 import time
+from collections import Counter
 
 import cv2
 import numpy as np
@@ -20,12 +21,24 @@ from starlette.concurrency import run_in_threadpool
 
 from app.core.security import decode_token
 from app.db.database import SessionLocal
+from app.models.log import EmotionLog
 from app.models.user import User
 from app.services.inference import get_pipeline
 
 router = APIRouter()
 
 WS_POLICY_VIOLATION = 1008  # token sai/thieu
+LOG_INTERVAL_SEC = 2.0  # toi da ~1 ban ghi / 2 giay cho moi ket noi (KHONG ghi tung frame)
+
+
+def _write_log(user_id: int, emotion: str, confidence: float) -> None:
+    """Ghi 1 ban ghi emotion_logs (chay trong threadpool de khong chen event loop)."""
+    db = SessionLocal()
+    try:
+        db.add(EmotionLog(user_id=user_id, emotion=emotion, confidence=confidence))
+        db.commit()
+    finally:
+        db.close()
 
 
 def _authenticate(token: str | None) -> User | None:
@@ -70,6 +83,11 @@ async def emotion_ws(websocket: WebSocket, token: str | None = None):
 
     await websocket.accept()
     pipeline = get_pipeline()
+
+    # Buffer cam xuc trong khoang LOG_INTERVAL_SEC de ghi theo MAU (khong ghi tung frame)
+    buffer: list[tuple[str, float]] = []
+    last_log = time.time()
+
     try:
         while True:
             # Nhan 1 frame JPEG (binary)
@@ -83,6 +101,20 @@ async def emotion_ws(websocket: WebSocket, token: str | None = None):
             # predict() la CPU-bound -> chay o threadpool de khong chen event loop
             faces = await run_in_threadpool(pipeline.predict, frame)
             await websocket.send_json(_build_payload(faces))
+
+            # Gom ket qua de tinh cam xuc noi troi cua khoang
+            for f in faces:
+                buffer.append((f["emotion"], float(f["score"])))
+
+            now = time.time()
+            if now - last_log >= LOG_INTERVAL_SEC and buffer:
+                counts = Counter(emotion for emotion, _ in buffer)
+                dominant = counts.most_common(1)[0][0]  # cam xuc xuat hien nhieu nhat
+                scores = [s for emotion, s in buffer if emotion == dominant]
+                confidence = sum(scores) / len(scores)  # confidence trung binh cua cam xuc do
+                await run_in_threadpool(_write_log, user.id, dominant, confidence)
+                buffer.clear()
+                last_log = now
     except WebSocketDisconnect:
         # Client dong ket noi binh thuong
         pass

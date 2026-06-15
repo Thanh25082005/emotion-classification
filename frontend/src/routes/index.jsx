@@ -1,4 +1,5 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
+import History from '../pages/History'
 import Live from '../pages/Live'
 import Login from '../pages/Login'
 import { useAuthStore } from '../stores/auth'
@@ -18,6 +19,14 @@ export const router = createBrowserRouter([
     element: (
       <RequireAuth>
         <Live />
+      </RequireAuth>
+    ),
+  },
+  {
+    path: '/history',
+    element: (
+      <RequireAuth>
+        <History />
       </RequireAuth>
     ),
   },

@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import WebcamView from '../components/WebcamView'
 import { useAuthStore } from '../stores/auth'
 
@@ -20,6 +20,7 @@ export default function Live() {
         <h1>Nhan dien cam xuc realtime</h1>
         <div>
           {user && <span style={{ marginRight: 8 }}>Xin chao, {user.username}</span>}
+          <Link to="/history" style={{ marginRight: 8 }}>Thong ke</Link>
           <button onClick={onLogout}>Dang xuat</button>
         </div>
       </div>

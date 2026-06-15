@@ -30,6 +30,6 @@ def get_db():
 
 def init_db():
     """Tao bang luc khoi dong (import model truoc de chung dang ky vao Base.metadata)."""
-    from app.models import user  # noqa: F401  (log them o Phase 5)
+    from app.models import log, user  # noqa: F401
 
     Base.metadata.create_all(bind=engine)

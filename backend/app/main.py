@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import auth, health
+from app.api import auth, health, logs
 from app.core.config import settings
 from app.db.database import init_db
 from app.services.inference import init_pipeline
@@ -37,6 +37,7 @@ app.add_middleware(
 # REST: prefix /api
 app.include_router(health.router, prefix="/api")
 app.include_router(auth.router, prefix="/api")
+app.include_router(logs.router, prefix="/api")
 
 # WebSocket: /ws/emotion (router tu khai bao duong dan day du)
 app.include_router(emotion_ws.router)
