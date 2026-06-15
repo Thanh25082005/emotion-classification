@@ -25,6 +25,23 @@ export default function History() {
       .catch((e) => setError(e?.response?.data?.detail || 'Khong tai duoc thong ke'))
   }, [])
 
+  // Tai CSV: fetch kem token (axios) roi tao blob de tai -> link <a> thuan khong gan duoc header
+  async function downloadCSV() {
+    try {
+      const res = await api.get('/logs/export.csv', { responseType: 'blob' })
+      const url = URL.createObjectURL(res.data)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = 'emotions.csv'
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch (e) {
+      setError('Tai CSV that bai')
+    }
+  }
+
   const data = stats
     ? Object.entries(stats.counts).map(([emotion, count]) => ({ name: emotion, value: count }))
     : []
@@ -33,7 +50,10 @@ export default function History() {
     <div style={{ maxWidth: 640, margin: '0 auto', padding: 16 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h1>Thong ke cam xuc</h1>
-        <Link to="/live">← Ve Live</Link>
+        <div>
+          <button onClick={downloadCSV} style={{ marginRight: 8 }}>Tai CSV</button>
+          <Link to="/live">← Ve Live</Link>
+        </div>
       </div>
 
       {error && <p style={{ color: 'red' }}>{error}</p>}
