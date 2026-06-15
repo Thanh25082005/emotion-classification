@@ -10,6 +10,7 @@ Hop dong (muc 6.2):
 Phase 4: verify JWT qua query param ?token= TRUOC khi accept;
 token sai/thieu -> dong ket noi voi code 1008 (policy violation).
 """
+import asyncio
 import time
 from collections import Counter
 
@@ -88,15 +89,31 @@ async def emotion_ws(websocket: WebSocket, token: str | None = None):
     buffer: list[tuple[str, float]] = []
     last_log = time.time()
 
+    # Producer/consumer: 1 task lien tuc nhan frame va ghi de vao o "moi nhat";
+    # vong xu ly luon lay frame MOI NHAT -> bo qua frame cu, KHONG bao gio bi tre don.
+    latest: dict[str, bytes | None] = {"data": None}
+    stop = asyncio.Event()
+
+    async def receiver():
+        try:
+            while True:
+                latest["data"] = await websocket.receive_bytes()
+        except WebSocketDisconnect:
+            stop.set()
+
+    recv_task = asyncio.create_task(receiver())
     try:
-        while True:
-            # Nhan 1 frame JPEG (binary)
-            data = await websocket.receive_bytes()
+        while not stop.is_set():
+            data = latest["data"]
+            if data is None:
+                await asyncio.sleep(0.005)  # chua co frame moi -> nhuong event loop
+                continue
+            latest["data"] = None  # tieu thu frame moi nhat
+
             arr = np.frombuffer(data, dtype=np.uint8)
             frame = cv2.imdecode(arr, cv2.IMREAD_COLOR)
             if frame is None:
-                # Frame hong -> bao qua, khong lam dut ket noi
-                continue
+                continue  # frame hong -> bo qua
 
             # predict() la CPU-bound -> chay o threadpool de khong chen event loop
             faces = await run_in_threadpool(pipeline.predict, frame)
@@ -116,5 +133,7 @@ async def emotion_ws(websocket: WebSocket, token: str | None = None):
                 buffer.clear()
                 last_log = now
     except WebSocketDisconnect:
-        # Client dong ket noi binh thuong
-        pass
+        pass  # client dong ket noi binh thuong
+    finally:
+        stop.set()
+        recv_task.cancel()

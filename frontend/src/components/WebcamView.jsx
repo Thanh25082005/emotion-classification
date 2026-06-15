@@ -3,9 +3,10 @@ import { Video, VideoOff, Wifi, WifiOff } from 'lucide-react'
 import { connectEmotionWS } from '../services/ws'
 import { emoColor, emoEmoji } from '../lib/emotions'
 
-// Throttle fps o client (~6-7 fps) theo gotcha #4: gui 30fps se nghen, nhat la may CPU.
-const SEND_INTERVAL_MS = 150
+// Back-pressure: chi gui frame moi khi da nhan ket qua frame truoc (in-flight = 1).
+// -> client tu dieu chinh dung bang toc do backend, KHONG d6n u frame -> box khong tre don.
 const JPEG_QUALITY = 0.6
+const SEND_WATCHDOG_MS = 4000 // neu qua lau khong co ket qua -> coi nhu mat frame, gui lai
 
 /**
  * Bat webcam -> gui frame JPEG qua WS -> ve bounding box + nhan cam xuc len overlay.
@@ -23,6 +24,8 @@ export default function WebcamView({ token, onFaces }) {
   const onFacesRef = useRef(onFaces)
   onFacesRef.current = onFaces
   const cameraOnRef = useRef(true)
+  const inFlightRef = useRef(false) // dang cho ket qua 1 frame?
+  const lastSentRef = useRef(0)
 
   const [status, setStatus] = useState('connecting')
   const [error, setError] = useState('')
@@ -36,6 +39,7 @@ export default function WebcamView({ token, onFaces }) {
     // Tat/bat track -> camera ngung thu hinh, KHONG can mo lai ket noi
     if (streamRef.current) streamRef.current.getVideoTracks().forEach((t) => (t.enabled = next))
     if (!next) {
+      inFlightRef.current = false // tranh ket lai khi bat camera tro lai
       facesRef.current = []
       setFaceCount(0)
       if (onFacesRef.current) onFacesRef.current([])
@@ -43,7 +47,6 @@ export default function WebcamView({ token, onFaces }) {
   }
 
   useEffect(() => {
-    let sendTimer = null
     let rafId = null
     let reconnectTimer = null
     let closedByUs = false // true khi unmount/token loi -> KHONG ket noi lai
@@ -64,6 +67,7 @@ export default function WebcamView({ token, onFaces }) {
         },
         onError: () => setStatus('error'),
         onMessage: (msg) => {
+          inFlightRef.current = false // da co ket qua -> cho phep gui frame ke tiep
           const faces = msg.faces || []
           facesRef.current = faces
           setFaceCount(faces.length)
@@ -89,28 +93,35 @@ export default function WebcamView({ token, onFaces }) {
       }
 
       openWS()
-      sendTimer = setInterval(sendFrame, SEND_INTERVAL_MS)
 
+      // Mot vong rAF lo CA hai: ve overlay + thu gui frame (back-pressure).
       const loop = () => {
         drawOverlay()
+        trySend()
         rafId = requestAnimationFrame(loop)
       }
       rafId = requestAnimationFrame(loop)
     }
 
-    function sendFrame() {
+    // Gui frame CHI khi khong con frame nao dang cho ket qua (in-flight = 1).
+    function trySend() {
       const video = videoRef.current
       const ws = wsRef.current
-      if (!cameraOnRef.current) return // dang tat camera -> khong gui
+      if (!cameraOnRef.current) return
       if (!video || !ws || ws.readyState !== WebSocket.OPEN || !video.videoWidth) return
+      // Watchdog: neu cho qua lau (frame loi/bi bo) -> mo lai cho gui
+      if (inFlightRef.current && performance.now() - lastSentRef.current < SEND_WATCHDOG_MS) return
 
       const cap = captureRef.current
       cap.width = video.videoWidth
       cap.height = video.videoHeight
       cap.getContext('2d').drawImage(video, 0, 0, cap.width, cap.height)
+      inFlightRef.current = true
+      lastSentRef.current = performance.now()
       cap.toBlob(
         (blob) => {
           if (blob && ws.readyState === WebSocket.OPEN) ws.send(blob)
+          else inFlightRef.current = false // gui hong -> cho phep thu lai
         },
         'image/jpeg',
         JPEG_QUALITY,
@@ -173,7 +184,6 @@ export default function WebcamView({ token, onFaces }) {
 
     return () => {
       closedByUs = true
-      if (sendTimer) clearInterval(sendTimer)
       if (rafId) cancelAnimationFrame(rafId)
       if (reconnectTimer) clearTimeout(reconnectTimer)
       if (wsRef.current) wsRef.current.close()

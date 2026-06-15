@@ -22,13 +22,14 @@ EFFNET_INPUT = 260   # khớp với Resize((260, 260)) lúc train
 OPSET = 13           # opset an toàn cho nhiều execution provider (CUDA / OpenVINO / CPU)
 
 
-def export_yolo(pt_path: str, out_path: str):
-    """YOLO: dùng ultralytics export, nó tự nhúng tiền xử lý + NMS vào pipeline khi chạy."""
+def export_yolo(pt_path: str, out_path: str, imgsz: int = 640):
+    """YOLO: dùng ultralytics export, nó tự nhúng tiền xử lý + NMS vào pipeline khi chạy.
+    imgsz nhỏ hơn (vd 384) -> detect nhanh hơn nhiều trên CPU, đổi lại độ chính xác giảm nhẹ."""
     from ultralytics import YOLO
 
     model = YOLO(pt_path)
     exported = model.export(format="onnx", opset=OPSET, dynamic=False,
-                            simplify=True, imgsz=640)
+                            simplify=True, imgsz=imgsz)
     if str(exported) != out_path:
         shutil.move(str(exported), out_path)
     print(f"[YOLO] da xuat: {out_path}")
@@ -68,8 +69,9 @@ if __name__ == "__main__":
     p.add_argument("--effnet", default="efficientnet_b2_fer2013.pth")
     p.add_argument("--yolo-out", default="face_yolo.onnx")
     p.add_argument("--effnet-out", default="emotion_effnet.onnx")
+    p.add_argument("--imgsz", type=int, default=640, help="kich thuoc dau vao YOLO (vd 384 cho nhanh)")
     args = p.parse_args()
 
-    export_yolo(args.yolo, args.yolo_out)
+    export_yolo(args.yolo, args.yolo_out, imgsz=args.imgsz)
     export_efficientnet(args.effnet, args.effnet_out)
     print("Xong. Hai file .onnx nay chay duoc tren CPU, GPU NVIDIA, va Intel.")
