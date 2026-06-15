@@ -1,0 +1,40 @@
+# Dong goi demo: backend (FastAPI + inference CPU) + frontend (Vite).
+# Webcam chay o TRINH DUYET tren may host -> khong can gan thiet bi vao container.
+# Backend mount thu muc ai-service/models de doc 2 file .onnx (khong copy vao image).
+#
+# Chay:   docker compose up --build
+# Mo:     http://localhost:5173   (backend o http://localhost:8000)
+#
+# Luu y: image backend mac dinh dung onnxruntime CPU. Muon GPU NVIDIA / Intel
+# xem phan "Cai theo loai may" trong README.
+
+services:
+  backend:
+    build: ./backend
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount loi AI + model (read-only). AI_SERVICE_DIR trong container la /ai-service.
+      - ./ai-service:/ai-service:ro
+      # Volume luu file SQLite ben ngoai container
+      - backend_data:/data
+    environment:
+      - SECRET_KEY=${SECRET_KEY:-doi-secret-nay-truoc-khi-deploy}
+      - DB_URL=sqlite:////data/emotion.db
+      - YOLO_ONNX=/ai-service/models/face_yolo.onnx
+      - EFFNET_ONNX=/ai-service/models/emotion_effnet.onnx
+      - CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:5173"
+    environment:
+      # Trinh duyet (tren host) goi toi backend qua localhost
+      - VITE_API_URL=http://localhost:8000/api
+      - VITE_WS_URL=ws://localhost:8000
+    depends_on:
+      - backend
+
+volumes:
+  backend_data:
