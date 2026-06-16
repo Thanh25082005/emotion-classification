@@ -1,0 +1,5 @@
+Place model weight files here:
+  - best.pt               (YOLOv8n face detector)
+  - efficientnet_b2_fer2013.pth   (EfficientNet-B2 emotion classifier)
+
+Download from the project's model release or re-train using notebooks/.
