@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libsm6 \
     libxrender1 \
     libxext6 \
+    wget \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

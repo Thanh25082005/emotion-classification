@@ -5,6 +5,7 @@ from fastapi.responses import JSONResponse
 from .core.config import settings
 from .core.logging import setup_logging, get_logger
 from .models.registry import registry
+from .models.weight_downloader import ensure_weights
 from .api.router import router
 
 setup_logging()
@@ -13,7 +14,9 @@ logger = get_logger(__name__)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    logger.info("Starting AI Service — loading models...")
+    logger.info("Starting AI Service — checking model weights...")
+    await asyncio.to_thread(ensure_weights)
+    logger.info("Loading models into memory...")
     await asyncio.to_thread(registry.load_all)
     yield
     logger.info("Shutting down AI Service")

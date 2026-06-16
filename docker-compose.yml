@@ -47,13 +47,15 @@ services:
       JWT_ALGORITHM: ${JWT_ALGORITHM:-HS256}
       ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-30}
       REFRESH_TOKEN_EXPIRE_DAYS: ${REFRESH_TOKEN_EXPIRE_DAYS:-7}
-      AI_SERVICE_BASE_URL: ${AI_SERVICE_BASE_URL:-http://localhost:9000}
+      AI_SERVICE_BASE_URL: ${AI_SERVICE_BASE_URL:-http://ai-service:9000}
       AI_SERVICE_TIMEOUT_SECONDS: ${AI_SERVICE_TIMEOUT_SECONDS:-10}
       FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      ai-service:
         condition: service_healthy
 
   frontend:
@@ -70,15 +72,28 @@ services:
     depends_on:
       - backend
 
-  # AI Service - uncomment when implementation is ready
-  # ai-service:
-  #   build:
-  #     context: ./services/ai-service
-  #   container_name: emotion_ai_service
-  #   ports:
-  #     - "9000:9000"
-  #   environment:
-  #     - APP_ENV=development
+  ai-service:
+    build:
+      context: ./services/ai-service
+      dockerfile: Dockerfile
+    container_name: emotion_ai_service
+    restart: unless-stopped
+    ports:
+      - "9000:9000"
+    environment:
+      APP_ENV: development
+      YOLO_MODEL_PATH: /app/weights/best.pt
+      EMOTION_MODEL_PATH: /app/weights/efficientnet_b2_fer2013.pth
+      DEVICE: cpu
+    volumes:
+      - ai_models:/app/weights
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9000/internal/v1/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
 
 volumes:
   postgres_data:
+  ai_models:
