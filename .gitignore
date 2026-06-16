@@ -49,3 +49,10 @@ postgres_data/
 # Uploads
 uploads/
 tmp/
+
+# Model weights — large binary files, download separately
+*.pt
+*.pth
+*.onnx
+*.bin
+*.safetensors
