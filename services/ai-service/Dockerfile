@@ -13,13 +13,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 COPY requirements.txt .
 
-# Install torch CPU-only first (much smaller than CUDA build)
+# Install torch CPU-only first (smaller than CUDA build, must use separate index)
 RUN pip install --no-cache-dir \
     torch==2.4.1 \
     torchvision==0.19.1 \
     --index-url https://download.pytorch.org/whl/cpu
 
-# Install remaining dependencies
+# Install remaining dependencies (torch/torchvision already installed above)
 RUN pip install --no-cache-dir \
     fastapi==0.115.0 \
     uvicorn[standard]==0.30.6 \
@@ -30,7 +30,8 @@ RUN pip install --no-cache-dir \
     ultralytics==8.3.0 \
     opencv-python-headless==4.10.0.84 \
     Pillow==10.4.0 \
-    numpy==1.26.4
+    numpy==1.26.4 \
+    gdown==5.2.0
 
 COPY src/ ./src/
 
