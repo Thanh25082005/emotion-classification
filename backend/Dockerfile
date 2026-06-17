@@ -1,7 +1,6 @@
-# Backend FastAPI + inference (CPU). Xem README de doi sang GPU NVIDIA / Intel.
 FROM python:3.12-slim
 
-# Thu vien he thong cho opencv
+# Thư viện hệ thống cho OpenCV
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libgl1 libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*

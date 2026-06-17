@@ -1,12 +1,14 @@
-# Dong goi demo: backend (FastAPI + inference CPU) + frontend (Vite).
-# Webcam chay o TRINH DUYET tren may host -> khong can gan thiet bi vao container.
-# Backend mount thu muc ai-service/models de doc 2 file .onnx (khong copy vao image).
+# Chạy toàn bộ hệ thống bằng Docker Compose.
+# Webcam chạy ở trình duyệt trên máy host — không cần gắn thiết bị vào container.
 #
-# Chay:   docker compose up --build
-# Mo:     http://localhost:5173   (backend o http://localhost:8000)
+# Khởi động:
+#   export SECRET_KEY="chuoi-ngau-nhien-dai"
+#   docker compose up --build
 #
-# Luu y: image backend mac dinh dung onnxruntime CPU. Muon GPU NVIDIA / Intel
-# xem phan "Cai theo loai may" trong README.
+# Truy cập:
+#   Frontend:  http://localhost:5173
+#   Backend:   http://localhost:8000
+#   API docs:  http://localhost:8000/docs
 
 services:
   backend:
@@ -14,25 +16,26 @@ services:
     ports:
       - "8000:8000"
     volumes:
-      # Mount loi AI + model (read-only). AI_SERVICE_DIR trong container la /ai-service.
+      # Mount thư mục ai-service vào /ai-service trong container (read-only).
+      # Backend import realtime_emotion.py và đọc model .onnx từ đây.
       - ./ai-service:/ai-service:ro
-      # Volume luu file SQLite ben ngoai container
+      # Lưu file SQLite bên ngoài container để không mất dữ liệu khi rebuild.
       - backend_data:/data
     environment:
-      - SECRET_KEY=${SECRET_KEY:-doi-secret-nay-truoc-khi-deploy}
-      - DB_URL=sqlite:////data/emotion.db
-      - YOLO_ONNX=/ai-service/models/face_yolo.onnx
-      - EFFNET_ONNX=/ai-service/models/emotion_effnet.onnx
-      - CORS_ORIGINS=http://localhost:5173,http://127.0.0.1:5173
+      SECRET_KEY: ${SECRET_KEY:-doi-secret-nay-truoc-khi-deploy}
+      DB_URL: sqlite:////data/emotion.db
+      YOLO_ONNX: /ai-service/models/face_yolo.onnx
+      EFFNET_ONNX: /ai-service/models/emotion_effnet.onnx
+      CORS_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
 
   frontend:
     build: ./frontend
     ports:
       - "5173:5173"
     environment:
-      # Trinh duyet (tren host) goi toi backend qua localhost
-      - VITE_API_URL=http://localhost:8000/api
-      - VITE_WS_URL=ws://localhost:8000
+      # Trình duyệt (trên host) gọi backend qua localhost — KHÔNG dùng tên service Docker.
+      VITE_API_URL: http://localhost:8000/api
+      VITE_WS_URL: ws://localhost:8000
     depends_on:
       - backend
 
