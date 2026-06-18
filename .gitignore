@@ -1,51 +1,31 @@
 # Python
 __pycache__/
 *.py[cod]
-*.so
-.Python
-build/
-dist/
 *.egg-info/
-.eggs/
 .pytest_cache/
-.mypy_cache/
-.coverage
-htmlcov/
-.tox/
 .venv/
 venv/
-ENV/
+env/
 
-# Node.js
+# Node
 node_modules/
-.next/
-out/
 dist/
-*.tsbuildinfo
+.vite/
 
-# Environment
+# Secrets / local config
 .env
-.env.local
-.env.*.local
-!.env.example
+*.local
 
-# IDE
-.idea/
-.vscode/
-*.swp
-*.swo
+# SQLite (DB tao luc chay)
+*.db
+*.sqlite
+*.sqlite3
 
 # OS
 .DS_Store
-Thumbs.db
 
-# Logs
-*.log
-logs/
+# Agent
+.claude/
 
-# Docker volumes
-postgres_data/
-
-# Uploads
-uploads/
-tmp/
+# Jupyter
+.ipynb_checkpoints/
